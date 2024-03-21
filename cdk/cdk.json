@@ -17,6 +17,14 @@
     ]
   },
   "context": {
+    "projectName": "learn-aws-batch-ec2",
+    "dev": {
+      "env": "dev",
+      "vpcCidr": "172.16.0.0/16",
+      "allowedIngressIpV4CIDRs": [
+        "0.0.0.0/0"
+      ]
+    },
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
     "@aws-cdk/core:target-partitions": [

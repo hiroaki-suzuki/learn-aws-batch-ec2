@@ -1,7 +1,7 @@
 {
   "name": "learn-aws-batch-ec2",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "deploy-dev": "cd cdk && npm run cdk -- deploy -c environment=dev"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.3.1",
