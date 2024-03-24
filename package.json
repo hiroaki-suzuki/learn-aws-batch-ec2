@@ -1,7 +1,8 @@
 {
   "name": "learn-aws-batch-ec2",
   "scripts": {
-    "deploy-dev": "cd cdk && npm run cdk -- deploy -c environment=dev"
+    "deploy-dev": "cd cdk && npm run cdk -- deploy -c environment=dev",
+    "destroy-dev": "cd cdk && npm run cdk -- destroy -c environment=dev"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.3.1",
