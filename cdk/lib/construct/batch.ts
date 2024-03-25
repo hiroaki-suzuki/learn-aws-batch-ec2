@@ -18,11 +18,11 @@ import {
   Role,
   ServicePrincipal,
 } from 'aws-cdk-lib/aws-iam';
-import { Rule } from 'aws-cdk-lib/aws-events';
-import { BatchJob } from 'aws-cdk-lib/aws-events-targets';
+import { EventField, Rule, RuleTargetInput } from 'aws-cdk-lib/aws-events';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { BaseLogGroup } from '../base/base-log-group';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
+import { BatchJob } from 'aws-cdk-lib/aws-events-targets';
 
 export interface BatchProps {
   readonly namePrefix: string;
@@ -73,7 +73,7 @@ export class Batch extends Construct {
       ],
     });
 
-    return new ManagedEc2EcsComputeEnvironment(this, 'Ec2ComputeEnv', {
+    const computeEnvironment = new ManagedEc2EcsComputeEnvironment(this, 'Ec2ComputeEnv', {
       computeEnvironmentName: `${namePrefix}-ec2-compute-env`,
       vpc,
       minvCpus: 0,
@@ -83,6 +83,10 @@ export class Batch extends Construct {
       useOptimalInstanceClasses: false,
       instanceTypes: [ec2.InstanceType.of(ec2.InstanceClass.M6G, ec2.InstanceSize.XLARGE)],
     });
+
+    // Tags.of(computeEnvironment).add('Name', `${namePrefix}-ec2-compute-env`);
+
+    return computeEnvironment;
   }
 
   private createJobQueue(
@@ -131,7 +135,13 @@ export class Batch extends Construct {
         image: ContainerImage.fromRegistry('public.ecr.aws/amazonlinux/amazonlinux:latest'),
         cpu: 1,
         memory: Size.mebibytes(2048),
-        command: ['echo', 'Hello, World!'],
+        command: [
+          'echo',
+          'バケット名: ',
+          'Ref::bucketName',
+          ', オブジェクトキー: ',
+          'Ref::objectKey',
+        ],
         executionRole,
         // jobRole,
         logging: LogDriver.awsLogs({
@@ -148,6 +158,10 @@ export class Batch extends Construct {
     jobQueue: JobQueue,
     jobDefinition: EcsJobDefinition,
   ): void {
+    const queue = new Queue(this, 'Queue', {
+      queueName: `${namePrefix}-dead-letter-queue`,
+    });
+
     const rule = new Rule(this, 'S3PutEventRule', {
       ruleName: `${namePrefix}-s3-put-rule`,
       eventPattern: {
@@ -161,16 +175,18 @@ export class Batch extends Construct {
       },
     });
 
-    const queue = new Queue(this, 'Queue', {
-      queueName: `${namePrefix}-dead-letter-queue`,
-    });
-
     rule.addTarget(
       new BatchJob(jobQueue.jobQueueArn, jobQueue, jobDefinition.jobDefinitionArn, jobDefinition, {
         jobName: `${namePrefix}-s3-put-job`,
         attempts: 5,
         deadLetterQueue: queue,
         maxEventAge: Duration.hours(2),
+        event: RuleTargetInput.fromObject({
+          Parameters: {
+            bucketName: EventField.fromPath('$.detail.bucket.name'),
+            objectKey: EventField.fromPath('$.detail.object.key'),
+          },
+        }),
       }),
     );
   }
